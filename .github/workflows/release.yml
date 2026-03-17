@@ -19,7 +19,7 @@ jobs:
       - name: Build Universal Binary
         run: |
           xcodebuild \
-            -project StockMonitor/StockMonitor.xcodeproj \
+            -project StockMonitor.xcodeproj \
             -scheme StockMonitor \
             -configuration Release \
             -derivedDataPath build \
