@@ -21,6 +21,7 @@ jobs:
 
       - name: Build Universal Binary
         run: |
+          MARKETING_VERSION="${GITHUB_REF_NAME#v}"
           xcodebuild \
             -project StockMonitor.xcodeproj \
             -scheme Stockbar \
@@ -30,7 +31,8 @@ jobs:
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            MARKETING_VERSION="${MARKETING_VERSION}"
 
       - name: Locate .app
         id: locate
