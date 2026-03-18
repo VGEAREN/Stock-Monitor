@@ -72,7 +72,7 @@ struct StockRowView: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+        .background(Color.primary.opacity(0.04))
         .cornerRadius(4)
         .contentShape(Rectangle())
         .onTapGesture { onTap?() }
