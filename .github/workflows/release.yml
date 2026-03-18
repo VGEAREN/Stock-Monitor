@@ -46,6 +46,7 @@ jobs:
 
           mkdir -p dmg_staging
           cp -R "$APP_PATH" dmg_staging/
+          ln -s /Applications dmg_staging/Applications
 
           hdiutil create \
             -volname "StockMonitor ${VERSION}" \
