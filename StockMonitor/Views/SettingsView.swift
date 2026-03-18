@@ -69,6 +69,18 @@ struct SettingsView: View {
                     }
                 }
 
+                // 持仓汇总货币
+                section("持仓汇总货币") {
+                    Picker("", selection: Binding(
+                        get: { appState.displayCurrency },
+                        set: { appState.displayCurrency = $0 }
+                    )) {
+                        ForEach(DisplayCurrency.allCases, id: \.rawValue) { c in
+                            Text(c.displayName).tag(c)
+                        }
+                    }.pickerStyle(.segmented)
+                }
+
                 // 开机启动
                 section("开机启动") {
                     Toggle("登录后自动启动", isOn: $launchAtLogin)

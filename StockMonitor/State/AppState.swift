@@ -7,16 +7,18 @@ final class AppState: ObservableObject {
 
     // MARK: - 持久化（UserDefaults via @AppStorage）
 
-    @AppStorage("statusBarStockId") var statusBarStockId: String    = ""
-    @AppStorage("refreshInterval")  var refreshInterval: Int        = 5
-    @AppStorage("colorSchemeRaw")   var colorSchemeRaw: String      = ColorTheme.chinese.rawValue
+    @AppStorage("statusBarStockId")    var statusBarStockId: String    = ""
+    @AppStorage("refreshInterval")     var refreshInterval: Int        = 5
+    @AppStorage("colorSchemeRaw")      var colorSchemeRaw: String      = ColorTheme.chinese.rawValue
+    @AppStorage("displayCurrencyRaw")  var displayCurrencyRaw: String  = DisplayCurrency.cny.rawValue
 
     // MARK: - 实时状态
 
-    @Published var quotes: [String: Quote] = [:]
-    @Published var isLoading: Bool         = false
-    @Published var lastUpdateTime: Date?   = nil
-    @Published var hasError: Bool          = false
+    @Published var quotes: [String: Quote]    = [:]
+    @Published var exchangeRates: ExchangeRates = ExchangeRates()
+    @Published var isLoading: Bool            = false
+    @Published var lastUpdateTime: Date?      = nil
+    @Published var hasError: Bool             = false
 
     // MARK: - 股票列表（持久化到 Application Support/StockMonitor/stocks.json）
 
@@ -70,6 +72,11 @@ final class AppState: ObservableObject {
         set { colorSchemeRaw = newValue.rawValue }
     }
 
+    var displayCurrency: DisplayCurrency {
+        get { DisplayCurrency(rawValue: displayCurrencyRaw) ?? .cny }
+        set { displayCurrencyRaw = newValue.rawValue }
+    }
+
     // MARK: - 刷新调度
 
     private var scheduler: RefreshScheduler?
@@ -108,11 +115,14 @@ final class AppState: ObservableObject {
             let all       = stocks.map(\.id)
             let sinaCodes = all.filter { !$0.hasPrefix("hk") }
             let hkCodes   = all.filter {  $0.hasPrefix("hk") }
-            async let sinaResult = DataService.fetchSinaQuotes(codes: sinaCodes)
-            async let hkResult   = DataService.fetchTencentHKQuotes(codes: hkCodes)
+            async let sinaResult  = DataService.fetchSinaQuotes(codes: sinaCodes)
+            async let hkResult    = DataService.fetchTencentHKQuotes(codes: hkCodes)
+            async let ratesResult = CurrencyService.fetchRates()
             let (s, h) = try await (sinaResult, hkResult)
+            let rates  = await ratesResult
             quotes.merge(s) { $1 }
             quotes.merge(h) { $1 }
+            exchangeRates  = rates
             lastUpdateTime = Date()
             syncStockNamesFromQuotes()
         } catch {
@@ -138,15 +148,15 @@ final class AppState: ObservableObject {
 
     var totalPnL: Double {
         stocks.compactMap { s -> Double? in
-            guard let q = quotes[s.id] else { return nil }
-            return s.pnl(quote: q)
+            guard let q = quotes[s.id], let pnl = s.pnl(quote: q) else { return nil }
+            return exchangeRates.convert(pnl, from: s.market, to: displayCurrency)
         }.reduce(0, +)
     }
 
     var totalDailyPnL: Double {
         stocks.compactMap { s -> Double? in
-            guard let q = quotes[s.id] else { return nil }
-            return s.dailyPnl(quote: q)
+            guard let q = quotes[s.id], let pnl = s.dailyPnl(quote: q) else { return nil }
+            return exchangeRates.convert(pnl, from: s.market, to: displayCurrency)
         }.reduce(0, +)
     }
 

@@ -1,5 +1,27 @@
 import Foundation
 
+enum DisplayCurrency: String, CaseIterable {
+    case cny = "CNY"
+    case hkd = "HKD"
+    case usd = "USD"
+
+    var symbol: String {
+        switch self {
+        case .cny: return "¥"
+        case .hkd: return "HK$"
+        case .usd: return "$"
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .cny: return "人民币 ¥"
+        case .hkd: return "港币 HK$"
+        case .usd: return "美元 $"
+        }
+    }
+}
+
 enum ColorTheme: String, Codable, CaseIterable {
     case chinese = "chinese"  // 红涨绿跌
     case western = "western"  // 绿涨红跌

@@ -96,7 +96,7 @@ All data is fetched from free public APIs — no API key required.
 ## Building from Source
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/StockMonitor.git
+git clone https://github.com/VGEAREN/StockMonitor.git
 cd StockMonitor/StockMonitor
 open StockMonitor.xcodeproj
 ```
