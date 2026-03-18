@@ -82,8 +82,14 @@ final class AppState: ObservableObject {
     private var scheduler: RefreshScheduler?
 
     init() {
+        appLogger.info("AppState init start")
+        logToFile("AppState init start")
         self.stocks = Self.loadStocks()
+        appLogger.info("AppState stocks loaded: \(self.stocks.count)")
+        logToFile("AppState stocks loaded: \(self.stocks.count)")
         setupScheduler()
+        appLogger.info("AppState init complete")
+        logToFile("AppState init complete")
         // 监听系统唤醒，解锁/休眠恢复后重新启动刷新
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
