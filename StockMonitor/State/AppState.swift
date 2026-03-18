@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import AppKit
+import os
 
 @MainActor
 final class AppState: ObservableObject {
@@ -40,6 +41,8 @@ final class AppState: ObservableObject {
     }
 
     private func saveStocks(_ stocks: [Stock]) {
+        // 防止把空数组覆盖掉磁盘上有内容的文件
+        if stocks.isEmpty, !Self.loadStocks().isEmpty { return }
         guard let data = try? JSONEncoder().encode(stocks) else { return }
         Self.backupIfNeeded()
         try? data.write(to: Self.stocksFileURL, options: .atomic)
@@ -84,7 +87,8 @@ final class AppState: ObservableObject {
     init() {
         appLogger.info("AppState init start")
         logToFile("AppState init start")
-        self.stocks = Self.loadStocks()
+        // 用 _stocks 直接赋值，绕过 didSet，避免加载失败时把空数组覆盖写回磁盘
+        _stocks = Published(wrappedValue: Self.loadStocks())
         appLogger.info("AppState stocks loaded: \(self.stocks.count)")
         logToFile("AppState stocks loaded: \(self.stocks.count)")
         setupScheduler()

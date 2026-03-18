@@ -12,7 +12,7 @@ enum Market: String, Codable, CaseIterable {
     }
 }
 
-struct Stock: Identifiable, Codable, Equatable {
+struct Stock: Identifiable, Equatable {
     var id: String              // 股票代码，如 "sh600000"、"usr_aapl"、"hk00700"
     var name: String
     var market: Market
@@ -29,5 +29,21 @@ struct Stock: Identifiable, Codable, Equatable {
     func dailyPnl(quote: Quote) -> Double? {
         guard let shares = holdingShares else { return nil }
         return quote.change * shares
+    }
+}
+
+// MARK: - Codable（容错：未知字段用默认值，避免新版本解码老数据时整条失败）
+extension Stock: Codable {
+    enum CodingKeys: String, CodingKey {
+        case id, name, market, costPrice, holdingShares
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id           = try c.decode(String.self,  forKey: .id)
+        name         = try c.decode(String.self,  forKey: .name)
+        market       = try c.decode(Market.self,  forKey: .market)
+        costPrice    = try c.decodeIfPresent(Double.self, forKey: .costPrice)
+        holdingShares = try c.decodeIfPresent(Double.self, forKey: .holdingShares)
     }
 }
