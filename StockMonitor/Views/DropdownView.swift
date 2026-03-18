@@ -45,6 +45,7 @@ struct DropdownView: View {
                         }
                         .padding(.horizontal, 6)
                     }
+                    .scrollIndicators(.never)
                     .frame(maxHeight: 520)
                 }
 

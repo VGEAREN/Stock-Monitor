@@ -106,6 +106,13 @@ struct StockChartView: View {
         }
     }
 
+    // 美股时段定义：x 轴 index（基准 04:00 ET，每分钟 +1）
+    private let usSessions: [(name: String, start: Int, end: Int, color: Color)] = [
+        ("盘前", 0,   329, Color.indigo),
+        ("盘中", 330, 719, Color.teal),
+        ("盘后", 720, 959, Color.orange),
+    ]
+
     private var lineChart: some View {
         let prices = points.map(\.price)
         let minP = prices.min() ?? preClose
@@ -120,8 +127,36 @@ struct StockChartView: View {
             : Color(appState.config.downColorName)
 
         let labelPositions = xAxisLabels.map(\.0)
+        let isUS = stock.market == .usStock
+        let labelY = yMin + (yMax - yMin) * 0.88
 
         return Chart {
+            // 美股时段背景色块
+            if isUS {
+                ForEach(usSessions, id: \.name) { s in
+                    RectangleMark(
+                        xStart: .value("xs", s.start),
+                        xEnd:   .value("xe", s.end),
+                        yStart: .value("ys", yMin),
+                        yEnd:   .value("ye", yMax)
+                    )
+                    .foregroundStyle(s.color.opacity(0.07))
+                }
+                // 美股时段文字标注
+                ForEach(usSessions, id: \.name) { s in
+                    PointMark(
+                        x: .value("t", (s.start + s.end) / 2),
+                        y: .value("price", labelY)
+                    )
+                    .symbolSize(0)
+                    .annotation(position: .overlay) {
+                        Text(s.name)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(s.color.opacity(0.65))
+                    }
+                }
+            }
+
             // 昨收参考线
             RuleMark(y: .value("昨收", preClose))
                 .lineStyle(StrokeStyle(lineWidth: 0.8, dash: [4, 4]))

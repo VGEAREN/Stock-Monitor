@@ -35,7 +35,7 @@ struct ProfitSummaryView: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(Color.primary.opacity(0.04))
             .cornerRadius(6)
         }
     }

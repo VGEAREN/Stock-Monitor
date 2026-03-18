@@ -6,6 +6,8 @@ struct SettingsView: View {
     @EnvironmentObject var appState: AppState
     @Binding var showSettings: Bool
 
+    @ObservedObject private var updater = UpdateChecker.shared
+
     @State private var launchAtLogin = (SMAppService.mainApp.status == .enabled)
     @State private var searchText    = ""
     @State private var searchResults = [SearchResult]()
@@ -21,6 +23,7 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+
                 if let s = editingStock {
                     inlineEditView(s)
                 } else {
@@ -93,6 +96,32 @@ struct SettingsView: View {
                         }
                 }
 
+                // 关于 & 更新
+                section("关于") {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Stockbar")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("版本 \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "-")")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button {
+                            UpdateChecker.shared.checkForUpdates()
+                        } label: {
+                            if UpdateChecker.shared.isChecking {
+                                ProgressView().scaleEffect(0.6).frame(width: 60)
+                            } else {
+                                Text("检查更新")
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(UpdateChecker.shared.isChecking)
+                    }
+                }
+
                 // 添加股票
                 section("添加股票") {
                     HStack {
@@ -136,6 +165,7 @@ struct SettingsView: View {
             }
             .padding(8)
         }
+        .scrollIndicators(.never)
         .frame(width: 284, height: 480)
     }
 

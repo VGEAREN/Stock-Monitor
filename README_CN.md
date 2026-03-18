@@ -13,7 +13,9 @@
 
 ## 截图
 
-> *(即将上传)*
+<div align="center">
+    <img src="docs/screenshot-main.png" width="320">
+</div>
 
 ---
 

@@ -13,7 +13,9 @@
 
 ## Screenshot
 
-> *(Coming soon)*
+<div align="center">
+    <img src="docs/screenshot-main.png" width="320">
+</div>
 
 ---
 
