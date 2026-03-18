@@ -37,8 +37,8 @@ struct StockRowView: View {
                             .font(.system(size: 9))
                             .foregroundColor(
                                 (q.extendedChangePercent ?? 0) >= 0
-                                    ? Color(appState.settings.upColorName)
-                                    : Color(appState.settings.downColorName)
+                                    ? Color(appState.config.upColorName)
+                                    : Color(appState.config.downColorName)
                             )
                     }
                     if stock.holdingShares == nil {

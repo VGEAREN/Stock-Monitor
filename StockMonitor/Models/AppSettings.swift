@@ -1,6 +1,6 @@
 import Foundation
 
-enum DisplayCurrency: String, CaseIterable {
+enum DisplayCurrency: String, Codable, CaseIterable {
     case cny = "CNY"
     case hkd = "HKD"
     case usd = "USD"
@@ -35,14 +35,28 @@ enum ColorTheme: String, Codable, CaseIterable {
 }
 
 struct AppSettings {
-    var colorScheme: ColorTheme
-    var refreshInterval: Int        // 秒，合法值见 validRefreshIntervals
-    var statusBarStockId: String?
+    var statusBarStockId: String       = ""
+    var refreshInterval: Int           = 5
+    var colorScheme: ColorTheme        = .chinese
+    var displayCurrency: DisplayCurrency = .cny
 
     static let validRefreshIntervals = [3, 5, 10, 30]
 
-    /// 上涨颜色 Asset 名称（在 Assets.xcassets 中定义）
     var upColorName: String   { colorScheme == .chinese ? "upRed"   : "upGreen" }
-    /// 下跌颜色 Asset 名称
     var downColorName: String { colorScheme == .chinese ? "downGreen" : "downRed" }
+}
+
+// MARK: - Codable（容错：缺失字段使用默认值）
+extension AppSettings: Codable {
+    enum CodingKeys: String, CodingKey {
+        case statusBarStockId, refreshInterval, colorScheme, displayCurrency
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        statusBarStockId = (try? c.decodeIfPresent(String.self,          forKey: .statusBarStockId))  ?? ""
+        refreshInterval  = (try? c.decodeIfPresent(Int.self,             forKey: .refreshInterval))   ?? 5
+        colorScheme      = (try? c.decodeIfPresent(ColorTheme.self,      forKey: .colorScheme))       ?? .chinese
+        displayCurrency  = (try? c.decodeIfPresent(DisplayCurrency.self, forKey: .displayCurrency))   ?? .cny
+    }
 }

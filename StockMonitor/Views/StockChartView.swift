@@ -116,8 +116,8 @@ struct StockChartView: View {
 
         let lastPrice = prices.last ?? preClose
         let lineColor: Color = lastPrice >= preClose
-            ? Color(appState.settings.upColorName)
-            : Color(appState.settings.downColorName)
+            ? Color(appState.config.upColorName)
+            : Color(appState.config.downColorName)
 
         let labelPositions = xAxisLabels.map(\.0)
 

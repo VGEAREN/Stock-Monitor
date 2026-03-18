@@ -6,56 +6,74 @@ import os
 @MainActor
 final class AppState: ObservableObject {
 
-    // MARK: - 持久化（UserDefaults via @AppStorage）
+    // MARK: - 持久化（settings.json）
 
-    @AppStorage("statusBarStockId")    var statusBarStockId: String    = ""
-    @AppStorage("refreshInterval")     var refreshInterval: Int        = 5
-    @AppStorage("colorSchemeRaw")      var colorSchemeRaw: String      = ColorTheme.chinese.rawValue
-    @AppStorage("displayCurrencyRaw")  var displayCurrencyRaw: String  = DisplayCurrency.cny.rawValue
+    @Published var config: AppSettings = AppSettings() {
+        didSet { saveSettings(config) }
+    }
 
-    // MARK: - 实时状态
-
-    @Published var quotes: [String: Quote]    = [:]
-    @Published var exchangeRates: ExchangeRates = ExchangeRates()
-    @Published var isLoading: Bool            = false
-    @Published var lastUpdateTime: Date?      = nil
-    @Published var hasError: Bool             = false
-
-    // MARK: - 股票列表（持久化到 Application Support/StockMonitor/stocks.json）
+    // MARK: - 持久化（stocks.json）
 
     @Published var stocks: [Stock] = [] {
         didSet { saveStocks(stocks) }
     }
 
-    private static var stocksFileURL: URL {
+    // MARK: - 实时状态
+
+    @Published var quotes: [String: Quote]      = [:]
+    @Published var exchangeRates: ExchangeRates = ExchangeRates()
+    @Published var isLoading: Bool              = false
+    @Published var lastUpdateTime: Date?        = nil
+    @Published var hasError: Bool               = false
+
+    // MARK: - 文件路径
+
+    private static var appSupportDir: URL {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let dir = support.appendingPathComponent("Stockbar")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("stocks.json")
+        return dir
     }
+
+    private static var stocksFileURL:   URL { appSupportDir.appendingPathComponent("stocks.json")   }
+    private static var settingsFileURL: URL { appSupportDir.appendingPathComponent("settings.json") }
+
+    // MARK: - 加载
 
     private static func loadStocks() -> [Stock] {
         guard let data = try? Data(contentsOf: stocksFileURL),
-              let stocks = try? JSONDecoder().decode([Stock].self, from: data) else { return [] }
-        return stocks
+              let val  = try? JSONDecoder().decode([Stock].self, from: data) else { return [] }
+        return val
     }
 
+    private static func loadSettings() -> AppSettings {
+        guard let data = try? Data(contentsOf: settingsFileURL),
+              let val  = try? JSONDecoder().decode(AppSettings.self, from: data) else { return AppSettings() }
+        return val
+    }
+
+    // MARK: - 保存
+
     private func saveStocks(_ stocks: [Stock]) {
-        // 防止把空数组覆盖掉磁盘上有内容的文件
         if stocks.isEmpty, !Self.loadStocks().isEmpty { return }
         guard let data = try? JSONEncoder().encode(stocks) else { return }
         Self.backupIfNeeded()
         try? data.write(to: Self.stocksFileURL, options: .atomic)
     }
 
-    /// 保存前备份当前文件，最多保留 10 份（stocks.1.json … stocks.10.json）
+    private func saveSettings(_ settings: AppSettings) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        guard let data = try? encoder.encode(settings) else { return }
+        try? data.write(to: Self.settingsFileURL, options: .atomic)
+    }
+
+    /// 滚动备份 stocks.json，最多保留 10 份
     private static func backupIfNeeded() {
-        let fm = FileManager.default
+        let fm  = FileManager.default
         let src = stocksFileURL
         guard fm.fileExists(atPath: src.path) else { return }
         let dir = src.deletingLastPathComponent()
-
-        // 向后滚动：stocks.9.json → stocks.10.json … stocks.1.json → stocks.2.json
         for i in stride(from: 9, through: 1, by: -1) {
             let from = dir.appendingPathComponent("stocks.\(i).json")
             let to   = dir.appendingPathComponent("stocks.\(i + 1).json")
@@ -64,20 +82,31 @@ final class AppState: ObservableObject {
                 try? fm.moveItem(at: from, to: to)
             }
         }
-        // 当前文件 → stocks.1.json
         let backup = dir.appendingPathComponent("stocks.1.json")
         try? fm.removeItem(at: backup)
         try? fm.copyItem(at: src, to: backup)
     }
 
+    // MARK: - 设置快捷访问（视图直接绑定这些属性）
+
+    var statusBarStockId: String {
+        get { config.statusBarStockId }
+        set { config.statusBarStockId = newValue }
+    }
+
+    var refreshInterval: Int {
+        get { config.refreshInterval }
+        set { config.refreshInterval = newValue }
+    }
+
     var colorScheme: ColorTheme {
-        get { ColorTheme(rawValue: colorSchemeRaw) ?? .chinese }
-        set { colorSchemeRaw = newValue.rawValue }
+        get { config.colorScheme }
+        set { config.colorScheme = newValue }
     }
 
     var displayCurrency: DisplayCurrency {
-        get { DisplayCurrency(rawValue: displayCurrencyRaw) ?? .cny }
-        set { displayCurrencyRaw = newValue.rawValue }
+        get { config.displayCurrency }
+        set { config.displayCurrency = newValue }
     }
 
     // MARK: - 刷新调度
@@ -87,14 +116,13 @@ final class AppState: ObservableObject {
     init() {
         appLogger.info("AppState init start")
         logToFile("AppState init start")
-        // 用 _stocks 直接赋值，绕过 didSet，避免加载失败时把空数组覆盖写回磁盘
         _stocks = Published(wrappedValue: Self.loadStocks())
+        _config = Published(wrappedValue: Self.loadSettings())
         appLogger.info("AppState stocks loaded: \(self.stocks.count)")
         logToFile("AppState stocks loaded: \(self.stocks.count)")
         setupScheduler()
         appLogger.info("AppState init complete")
         logToFile("AppState init complete")
-        // 监听系统唤醒，解锁/休眠恢复后重新启动刷新
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil,
@@ -141,7 +169,6 @@ final class AppState: ObservableObject {
         isLoading = false
     }
 
-    /// 将 API 返回的中文名称同步到 stocks，避免直接输入代码添加时显示代码而非中文名
     private func syncStockNamesFromQuotes() {
         var updated = stocks
         var changed = false
@@ -174,9 +201,8 @@ final class AppState: ObservableObject {
         stocks.contains { $0.costPrice != nil && $0.holdingShares != nil }
     }
 
-    // MARK: - 状态栏股票（含 fallback）
+    // MARK: - 状态栏
 
-    /// fallback：statusBarStockId 被删除时自动取第一只；"__none__" 或列表为空返回 nil
     var statusBarStock: Stock? {
         if statusBarStockId == "__none__" { return nil }
         return stocks.first(where: { $0.id == statusBarStockId }) ?? stocks.first
@@ -187,51 +213,43 @@ final class AppState: ObservableObject {
         return quotes[s.id]
     }
 
-    // MARK: - 设置 & 颜色辅助
-
-    /// 当前 AppSettings 快照（用于颜色查找等只读场景）
-    var settings: AppSettings {
-        AppSettings(colorScheme: colorScheme, refreshInterval: refreshInterval,
-                    statusBarStockId: statusBarStockId.isEmpty ? nil : statusBarStockId)
-    }
+    // MARK: - 颜色辅助
 
     func quoteColor(for quote: Quote) -> Color {
-        if quote.isUp   { return Color(settings.upColorName) }
-        if quote.isDown { return Color(settings.downColorName) }
+        if quote.isUp   { return Color(config.upColorName) }
+        if quote.isDown { return Color(config.downColorName) }
         return .secondary
     }
 
     func pnlColor(_ pnl: Double) -> Color {
-        if pnl > 0 { return Color(settings.upColorName) }
-        if pnl < 0 { return Color(settings.downColorName) }
+        if pnl > 0 { return Color(config.upColorName) }
+        if pnl < 0 { return Color(config.downColorName) }
         return .secondary
     }
 
-    /// 当前美股交易时段（按 ET 时间）
-    /// 盘前 04:00-09:30 | 盘中 09:30-16:00 | 盘后 16:00-20:00 | 夜盘 20:00-04:00
+    // MARK: - 美股交易时段
+
     static func usMarketSession() -> String? {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "America/New_York")!
-        let now = Date()
+        let now   = Date()
         let comps = cal.dateComponents([.weekday, .hour, .minute], from: now)
-        let weekday = comps.weekday ?? 1   // 1=Sun, 7=Sat
+        let weekday = comps.weekday ?? 1
         let minutes = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
-
         switch minutes {
-        case 0..<240:    // 00:00-04:00 夜盘（属于前一交易日延续）
-            // Tue-Sat（对应 Mon-Fri 夜盘延续）
+        case 0..<240:
             guard weekday >= 3, weekday <= 7 else { return nil }
             return "夜盘"
-        case 240..<570:  // 04:00-09:30 盘前，Mon-Fri
+        case 240..<570:
             guard weekday >= 2, weekday <= 6 else { return nil }
             return "盘前"
-        case 570..<960:  // 09:30-16:00 盘中，Mon-Fri
+        case 570..<960:
             guard weekday >= 2, weekday <= 6 else { return nil }
             return "盘中"
-        case 960..<1200: // 16:00-20:00 盘后，Mon-Fri
+        case 960..<1200:
             guard weekday >= 2, weekday <= 6 else { return nil }
             return "盘后"
-        case 1200..<1440: // 20:00-24:00 夜盘，Mon-Fri
+        case 1200..<1440:
             guard weekday >= 2, weekday <= 6 else { return nil }
             return "夜盘"
         default:
