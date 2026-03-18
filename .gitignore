@@ -12,3 +12,6 @@ build/
 # SPM
 .build/
 .swiftpm/
+
+# Claude
+CLAUDE.md
