@@ -14,7 +14,9 @@
 ## 截图
 
 <div align="center">
-    <img src="docs/screenshot-main.png" width="320">
+    <img src="docs/screenshot-main.png" width="300">
+    &nbsp;&nbsp;
+    <img src="docs/screenshot-chart.png" width="300">
 </div>
 
 ---
