@@ -72,7 +72,14 @@ final class UpdateChecker: ObservableObject {
             return finish("未找到安装包")
         }
 
-        // 3. 下载 + 安装
+        // 3. 弹窗确认
+        isBusy = false
+        status = ""
+        let confirmed = confirmUpdate(latest: latest, current: current)
+        guard confirmed else { return }
+
+        // 4. 下载 + 安装
+        isBusy = true
         status = "正在下载 v\(latest)…"
         await downloadAndInstall(url: downloadURL, version: latest, releaseBody: release.body)
     }
@@ -167,6 +174,17 @@ final class UpdateChecker: ObservableObject {
         let components = match.split(separator: ":", maxSplits: 1)
         guard components.count == 2 else { return nil }
         return components[1].trimmingCharacters(in: .whitespaces)
+    }
+
+    // MARK: - 确认弹窗
+
+    private func confirmUpdate(latest: String, current: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "发现新版本 v\(latest)"
+        alert.informativeText = "当前版本 v\(current)，是否立即更新？"
+        alert.addButton(withTitle: "立即更新")
+        alert.addButton(withTitle: "暂不更新")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     // MARK: - 辅助
