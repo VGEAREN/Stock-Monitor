@@ -59,16 +59,17 @@ final class DataService {
                      changePercent: changePercent, updateTime: updateTime)
     }
 
-    // 美股字段: 0=名称, 1=现价, 2=涨跌%, 3=更新时间, 4=涨跌额, ..., 26=昨收
+    // 美股字段: 0=名称, 1=现价, 2=涨跌%, 3=更新时间, 4=涨跌额, ..., 21=盘外价, 26=昨收
     private static func parseUSStock(code: String, params: [String]) -> Quote? {
         guard params.count >= 27 else { return nil }
         let yestClose = Double(params[26]) ?? 0
-        let price     = Double(params[1])  ?? 0
+        let rawPrice  = Double(params[1])  ?? 0
+        let extPrice  = params.count > 21 ? (Double(params[21]) ?? 0) : 0
+        // 主价格为 0 时（夜盘初期），用盘外价格兜底
+        let price = rawPrice > 0 ? rawPrice : extPrice
         guard price > 0, yestClose > 0 else { return nil }
         let change        = price - yestClose
         let changePercent = change / yestClose * 100
-        // field 21：盘前/盘后价（0 表示无数据）
-        let extPrice = params.count > 21 ? (Double(params[21]) ?? 0) : 0
         return Quote(code: code, name: params[0], price: price, change: change,
                      changePercent: changePercent, updateTime: params[3],
                      extendedPrice: extPrice > 0 ? extPrice : nil)
