@@ -74,8 +74,12 @@ enum LaunchAtLogin {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let data = try? PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
         if let data = data {
-            try? data.write(to: plistURL, options: .atomic)
-            logToFile("LaunchAtLogin: wrote LaunchAgent plist to \(plistURL.path)")
+            do {
+                try data.write(to: plistURL, options: .atomic)
+                logToFile("LaunchAtLogin: wrote LaunchAgent plist to \(plistURL.path)")
+            } catch {
+                logToFile("LaunchAtLogin: failed to write plist: \(error)")
+            }
         }
     }
 

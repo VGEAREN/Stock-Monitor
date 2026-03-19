@@ -1,9 +1,12 @@
 import Foundation
 import AppKit
 import Combine
+import CryptoKit
 
 private struct GitHubRelease: Decodable {
     let tagName: String
+    let htmlUrl: String
+    let body: String?
     let assets: [Asset]
 
     struct Asset: Decodable {
@@ -17,6 +20,8 @@ private struct GitHubRelease: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case tagName = "tag_name"
+        case htmlUrl = "html_url"
+        case body
         case assets
     }
 }
@@ -69,12 +74,12 @@ final class UpdateChecker: ObservableObject {
 
         // 3. 下载 + 安装
         status = "正在下载 v\(latest)…"
-        await downloadAndInstall(url: downloadURL, version: latest)
+        await downloadAndInstall(url: downloadURL, version: latest, releaseBody: release.body)
     }
 
     // MARK: - 下载安装
 
-    private func downloadAndInstall(url: URL, version: String) async {
+    private func downloadAndInstall(url: URL, version: String, releaseBody: String?) async {
         let fm = FileManager.default
         let tempDir = fm.temporaryDirectory.appendingPathComponent("StockbarUpdate-\(UUID().uuidString)")
         try? fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -86,6 +91,21 @@ final class UpdateChecker: ObservableObject {
             try fm.moveItem(at: localURL, to: dmgPath)
         } catch {
             return finish("下载失败")
+        }
+
+        // SHA-256 校验
+        if let expectedHash = parseSHA256(from: releaseBody) {
+            guard let dmgData = try? Data(contentsOf: dmgPath) else {
+                return finish("校验失败")
+            }
+            let actualHash = SHA256.hash(data: dmgData).map { String(format: "%02x", $0) }.joined()
+            guard actualHash.lowercased() == expectedHash.lowercased() else {
+                logToFile("UpdateChecker: SHA-256 mismatch, expected=\(expectedHash) actual=\(actualHash)")
+                return finish("校验失败")
+            }
+            logToFile("UpdateChecker: SHA-256 verified OK")
+        } else {
+            logToFile("UpdateChecker: no SHA-256 in release body, skipping verification")
         }
 
         status = "正在安装…"
@@ -114,15 +134,15 @@ final class UpdateChecker: ObservableObject {
         }
         shell("/usr/bin/hdiutil", "detach", mountPoint, "-quiet")
 
-        // 写替换脚本并执行
+        // 写替换脚本并执行（使用位置参数避免路径注入）
         let currentApp = Bundle.main.bundlePath
         let script = """
         #!/bin/bash
         sleep 1
-        rm -rf "\(currentApp)"
-        cp -R "\(newApp)" "\(currentApp)"
-        open "\(currentApp)"
-        rm -rf "\(tempDir.path)"
+        rm -rf "$1"
+        cp -R "$2" "$1"
+        open "$1"
+        rm -rf "$3"
         """
         let scriptPath = tempDir.appendingPathComponent("update.sh").path
         try? script.write(toFile: scriptPath, atomically: true, encoding: .utf8)
@@ -131,10 +151,22 @@ final class UpdateChecker: ObservableObject {
         status = "正在重启…"
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/bin/bash")
-        proc.arguments = [scriptPath]
+        proc.arguments = [scriptPath, currentApp, newApp, tempDir.path]
         try? proc.run()
 
         NSApplication.shared.terminate(nil)
+    }
+
+    /// 从 release body 中提取 SHA-256 哈希值（格式: SHA-256: <hex>）
+    private func parseSHA256(from body: String?) -> String? {
+        guard let body = body else { return nil }
+        let pattern = #"SHA-256:\s*([0-9a-fA-F]{64})"#
+        guard let range = body.range(of: pattern, options: .regularExpression) else { return nil }
+        let match = String(body[range])
+        // Extract just the hex part after "SHA-256:"
+        let components = match.split(separator: ":", maxSplits: 1)
+        guard components.count == 2 else { return nil }
+        return components[1].trimmingCharacters(in: .whitespaces)
     }
 
     // MARK: - 辅助

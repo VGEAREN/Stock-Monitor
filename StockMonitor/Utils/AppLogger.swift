@@ -11,6 +11,24 @@ func logToFile(_ message: String) {
     try? fm.createDirectory(at: logDir, withIntermediateDirectories: true)
     let logFile = logDir.appendingPathComponent("app.log")
 
+    // Log rotation: if file exceeds 1MB, keep only last 500KB
+    let maxSize: UInt64 = 1_000_000
+    let keepSize: Int   = 500_000
+    if let attrs = try? fm.attributesOfItem(atPath: logFile.path),
+       let fileSize = attrs[.size] as? UInt64,
+       fileSize > maxSize,
+       let data = try? Data(contentsOf: logFile),
+       data.count > keepSize {
+        let tail = data.suffix(keepSize)
+        // Find first newline in tail to avoid partial line
+        if let newlineIndex = tail.firstIndex(of: UInt8(ascii: "\n")) {
+            let clean = tail.suffix(from: tail.index(after: newlineIndex))
+            try? clean.write(to: logFile)
+        } else {
+            try? tail.write(to: logFile)
+        }
+    }
+
     let ts = ISO8601DateFormatter().string(from: Date())
     let line = "[\(ts)] \(message)\n"
     if fm.fileExists(atPath: logFile.path),

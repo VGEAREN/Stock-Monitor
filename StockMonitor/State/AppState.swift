@@ -58,14 +58,22 @@ final class AppState: ObservableObject {
         if stocks.isEmpty, !Self.loadStocks().isEmpty { return }
         guard let data = try? JSONEncoder().encode(stocks) else { return }
         Self.backupIfNeeded()
-        try? data.write(to: Self.stocksFileURL, options: .atomic)
+        do {
+            try data.write(to: Self.stocksFileURL, options: .atomic)
+        } catch {
+            logToFile("saveStocks: failed to write stocks.json: \(error)")
+        }
     }
 
     private func saveSettings(_ settings: AppSettings) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
         guard let data = try? encoder.encode(settings) else { return }
-        try? data.write(to: Self.settingsFileURL, options: .atomic)
+        do {
+            try data.write(to: Self.settingsFileURL, options: .atomic)
+        } catch {
+            logToFile("saveSettings: failed to write settings.json: \(error)")
+        }
     }
 
     /// 滚动备份 stocks.json，最多保留 10 份
@@ -78,13 +86,13 @@ final class AppState: ObservableObject {
             let from = dir.appendingPathComponent("stocks.\(i).json")
             let to   = dir.appendingPathComponent("stocks.\(i + 1).json")
             if fm.fileExists(atPath: from.path) {
-                try? fm.removeItem(at: to)
-                try? fm.moveItem(at: from, to: to)
+                do { try fm.removeItem(at: to) } catch { logToFile("backupIfNeeded: removeItem \(to.lastPathComponent) failed: \(error)") }
+                do { try fm.moveItem(at: from, to: to) } catch { logToFile("backupIfNeeded: moveItem \(from.lastPathComponent) -> \(to.lastPathComponent) failed: \(error)") }
             }
         }
         let backup = dir.appendingPathComponent("stocks.1.json")
-        try? fm.removeItem(at: backup)
-        try? fm.copyItem(at: src, to: backup)
+        do { try fm.removeItem(at: backup) } catch { logToFile("backupIfNeeded: removeItem \(backup.lastPathComponent) failed: \(error)") }
+        do { try fm.copyItem(at: src, to: backup) } catch { logToFile("backupIfNeeded: copyItem to \(backup.lastPathComponent) failed: \(error)") }
     }
 
     // MARK: - 设置快捷访问（视图直接绑定这些属性）
