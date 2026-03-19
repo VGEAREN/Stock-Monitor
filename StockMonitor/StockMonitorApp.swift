@@ -7,7 +7,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         appLogger.info("applicationDidFinishLaunching")
         logToFile("applicationDidFinishLaunching — pid=\(ProcessInfo.processInfo.processIdentifier)")
-        try? SMAppService.mainApp.register()
+        let status = SMAppService.mainApp.status
+        logToFile("SMAppService.mainApp.status = \(status.rawValue)")
     }
 
     func applicationWillTerminate(_ notification: Notification) {

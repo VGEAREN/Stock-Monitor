@@ -51,6 +51,18 @@ struct SettingsView: View {
                     }.pickerStyle(.menu)
                 }
 
+                // 状态栏盈亏显示
+                section("状态栏盈亏") {
+                    Picker("", selection: Binding(
+                        get: { appState.config.statusBarPnL },
+                        set: { appState.config.statusBarPnL = $0 }
+                    )) {
+                        ForEach(StatusBarPnL.allCases, id: \.rawValue) { opt in
+                            Text(opt.displayName).tag(opt)
+                        }
+                    }.pickerStyle(.menu)
+                }
+
                 // 刷新间隔
                 section("刷新间隔") {
                     Picker("", selection: Binding(
@@ -88,11 +100,17 @@ struct SettingsView: View {
                 section("开机启动") {
                     Toggle("登录后自动启动", isOn: $launchAtLogin)
                         .onChange(of: launchAtLogin) { enabled in
-                            if enabled {
-                                try? SMAppService.mainApp.register()
-                            } else {
-                                try? SMAppService.mainApp.unregister()
+                            do {
+                                if enabled {
+                                    try SMAppService.mainApp.register()
+                                } else {
+                                    try SMAppService.mainApp.unregister()
+                                }
+                            } catch {
+                                logToFile("SMAppService \(enabled ? "register" : "unregister") failed: \(error)")
                             }
+                            // 刷新为实际状态，防止 UI 与系统不一致
+                            launchAtLogin = (SMAppService.mainApp.status == .enabled)
                         }
                 }
 

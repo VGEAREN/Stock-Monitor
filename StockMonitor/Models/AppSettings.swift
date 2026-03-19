@@ -22,6 +22,22 @@ enum DisplayCurrency: String, Codable, CaseIterable {
     }
 }
 
+enum StatusBarPnL: String, Codable, CaseIterable {
+    case none    = "none"
+    case daily   = "daily"
+    case total   = "total"
+    case both    = "both"
+
+    var displayName: String {
+        switch self {
+        case .none:  return "不显示"
+        case .daily: return "日盈亏"
+        case .total: return "总盈亏"
+        case .both:  return "日盈亏 + 总盈亏"
+        }
+    }
+}
+
 enum ColorTheme: String, Codable, CaseIterable {
     case chinese = "chinese"  // 红涨绿跌
     case western = "western"  // 绿涨红跌
@@ -35,10 +51,11 @@ enum ColorTheme: String, Codable, CaseIterable {
 }
 
 struct AppSettings {
-    var statusBarStockId: String       = ""
-    var refreshInterval: Int           = 5
-    var colorScheme: ColorTheme        = .chinese
+    var statusBarStockId: String         = ""
+    var refreshInterval: Int             = 5
+    var colorScheme: ColorTheme          = .chinese
     var displayCurrency: DisplayCurrency = .cny
+    var statusBarPnL: StatusBarPnL       = .total
 
     static let validRefreshIntervals = [3, 5, 10, 30]
 
@@ -49,7 +66,7 @@ struct AppSettings {
 // MARK: - Codable（容错：缺失字段使用默认值）
 extension AppSettings: Codable {
     enum CodingKeys: String, CodingKey {
-        case statusBarStockId, refreshInterval, colorScheme, displayCurrency
+        case statusBarStockId, refreshInterval, colorScheme, displayCurrency, statusBarPnL
     }
 
     init(from decoder: Decoder) throws {
@@ -58,5 +75,6 @@ extension AppSettings: Codable {
         refreshInterval  = (try? c.decodeIfPresent(Int.self,             forKey: .refreshInterval))   ?? 5
         colorScheme      = (try? c.decodeIfPresent(ColorTheme.self,      forKey: .colorScheme))       ?? .chinese
         displayCurrency  = (try? c.decodeIfPresent(DisplayCurrency.self, forKey: .displayCurrency))   ?? .cny
+        statusBarPnL     = (try? c.decodeIfPresent(StatusBarPnL.self,    forKey: .statusBarPnL))      ?? .total
     }
 }
