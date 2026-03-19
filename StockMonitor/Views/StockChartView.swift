@@ -214,10 +214,15 @@ struct StockChartView: View {
     // 今开：分时第一个点的价格；昨收：API 返回的 preclose
 
     private var statsRow: some View {
-        HStack(spacing: 0) {
+        let prices = points.map(\.price)
+        return HStack(spacing: 0) {
             statItem(label: "昨收", value: fmt(preClose))
             Spacer()
             statItem(label: "今开", value: fmt(points.first?.price ?? 0))
+            Spacer()
+            statItem(label: "最高", value: fmt(prices.max() ?? 0))
+            Spacer()
+            statItem(label: "最低", value: fmt(prices.min() ?? 0))
             Spacer()
             statItem(label: "现价", value: fmt(quote?.price ?? 0))
         }
