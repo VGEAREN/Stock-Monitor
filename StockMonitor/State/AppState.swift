@@ -261,24 +261,12 @@ final class AppState: ObservableObject {
         let comps = cal.dateComponents([.weekday, .hour, .minute], from: now)
         let weekday = comps.weekday ?? 1
         let minutes = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
+        guard weekday >= 2, weekday <= 6 else { return nil }
         switch minutes {
-        case 0..<240:
-            guard weekday >= 3, weekday <= 7 else { return nil }
-            return "夜盘"
-        case 240..<570:
-            guard weekday >= 2, weekday <= 6 else { return nil }
-            return "盘前"
-        case 570..<960:
-            guard weekday >= 2, weekday <= 6 else { return nil }
-            return "盘中"
-        case 960..<1200:
-            guard weekday >= 2, weekday <= 6 else { return nil }
-            return "盘后"
-        case 1200..<1440:
-            guard weekday >= 2, weekday <= 6 else { return nil }
-            return "夜盘"
-        default:
-            return nil
+        case 240..<570:  return "盘前"   // ET 04:00–09:30
+        case 570..<960:  return "盘中"   // ET 09:30–16:00
+        case 960..<1200: return "盘后"   // ET 16:00–20:00
+        default:         return nil      // 夜盘无数据源，不显示
         }
     }
 }
