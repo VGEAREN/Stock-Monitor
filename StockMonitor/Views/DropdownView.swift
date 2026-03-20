@@ -10,14 +10,27 @@ struct DropdownView: View {
         [Market.aStock, .hkStock, .usStock].compactMap { market in
             var s = appState.stocks.filter { $0.market == market }
             if sortByChange {
-                s.sort {
-                    let a = appState.quotes[$0.id]?.changePercent ?? -Double.infinity
-                    let b = appState.quotes[$1.id]?.changePercent ?? -Double.infinity
-                    return a > b
+                let rule = appState.config.sortRule
+                let usMode = appState.config.usPriceMode
+                s.sort { a, b in
+                    let qa = appState.quotes[a.id]
+                    let qb = appState.quotes[b.id]
+                    let va = sortValue(quote: qa, market: market, mode: usMode)
+                    let vb = sortValue(quote: qb, market: market, mode: usMode)
+                    return rule == .changeDesc ? va > vb : va < vb
                 }
             }
             return s.isEmpty ? nil : (market, s)
         }
+    }
+
+    private func sortValue(quote: Quote?, market: Market, mode: USPriceMode) -> Double {
+        guard let q = quote else { return -Double.infinity }
+        if market == .usStock && mode == .sessionPrice, let ext = q.extendedPrice {
+            // 用时段价格算涨跌幅：(盘外价 - 正盘价) / 正盘价
+            return q.price > 0 ? (ext - q.price) / q.price * 100 : q.changePercent
+        }
+        return q.changePercent
     }
 
     var body: some View {

@@ -54,6 +54,30 @@ struct SettingsView: View {
                     }.pickerStyle(.menu)
                 }
 
+                // 排序规则
+                section("排序规则") {
+                    Picker("", selection: Binding(
+                        get: { appState.config.sortRule },
+                        set: { appState.config.sortRule = $0 }
+                    )) {
+                        ForEach(SortRule.allCases, id: \.rawValue) { rule in
+                            Text(rule.displayName).tag(rule)
+                        }
+                    }.pickerStyle(.segmented)
+                }
+
+                // 美股排序价格
+                section("美股排序价格") {
+                    Picker("", selection: Binding(
+                        get: { appState.config.usPriceMode },
+                        set: { appState.config.usPriceMode = $0 }
+                    )) {
+                        ForEach(USPriceMode.allCases, id: \.rawValue) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }.pickerStyle(.segmented)
+                }
+
                 // 刷新间隔
                 section("刷新间隔") {
                     Picker("", selection: Binding(
