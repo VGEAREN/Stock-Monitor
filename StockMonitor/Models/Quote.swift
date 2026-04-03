@@ -32,6 +32,19 @@ struct Quote {
     var isUp:   Bool { change > 0 }
     var isDown: Bool { change < 0 }
 
+    /// 数据是否为今天（通过 updateTime 中的日期判断）
+    var isToday: Bool {
+        // 匹配 yyyy-MM-dd 或 yyyy/MM/dd 格式
+        let digits = updateTime.replacingOccurrences(of: "/", with: "-")
+        guard digits.count >= 10 else { return false }
+        let dateStr = String(digits.prefix(10))
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone(identifier: "Asia/Shanghai")
+        let today = fmt.string(from: Date())
+        return dateStr == today
+    }
+
     var formattedPercent: String {
         let sign = changePercent >= 0 ? "+" : ""
         return String(format: "\(sign)%.2f%%", changePercent)

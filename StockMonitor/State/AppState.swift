@@ -260,6 +260,8 @@ final class AppState: ObservableObject {
 
     func effectiveDailyPnl(stock: Stock, quote: Quote) -> Double? {
         guard let shares = effectiveShares(for: stock) else { return nil }
+        // 休市日数据是昨天的，不显示日盈亏
+        guard quote.isToday else { return nil }
         return quote.change * shares
     }
 
