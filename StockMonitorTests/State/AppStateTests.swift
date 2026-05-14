@@ -4,9 +4,18 @@ import XCTest
 @MainActor
 final class AppStateTests: XCTestCase {
     var sut: AppState!
+    var tmpDir: URL!
 
     override func setUp() {
         super.setUp()
+        // CRITICAL: AppState reads/writes ~/Library/Application Support/Stockbar/
+        // by default. Without isolation, every test mutation would overwrite the
+        // user's real stocks.json. Always redirect to a per-test temp dir.
+        tmpDir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("StockbarTests-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        AppState.appSupportDirOverride = tmpDir
+
         sut = AppState()
         sut.stocks = []
         sut.quotes = [:]
@@ -15,6 +24,9 @@ final class AppStateTests: XCTestCase {
 
     override func tearDown() {
         sut = nil
+        AppState.appSupportDirOverride = nil
+        if let d = tmpDir { try? FileManager.default.removeItem(at: d) }
+        tmpDir = nil
         super.tearDown()
     }
 

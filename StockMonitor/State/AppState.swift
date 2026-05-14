@@ -33,8 +33,17 @@ final class AppState: ObservableObject {
     @Published var hasError: Bool               = false
 
     // MARK: - 文件路径
+    //
+    // 测试隔离：把 appSupportDirOverride 设为临时目录，测试就不会写真实用户数据。
+    // 若不设置，使用真实 ~/Library/Application Support/Stockbar/。
+
+    static var appSupportDirOverride: URL?
 
     private static var appSupportDir: URL {
+        if let override = appSupportDirOverride {
+            try? FileManager.default.createDirectory(at: override, withIntermediateDirectories: true)
+            return override
+        }
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let dir = support.appendingPathComponent("Stockbar")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
