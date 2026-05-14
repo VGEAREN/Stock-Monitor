@@ -258,7 +258,9 @@ struct SettingsView: View {
             .padding(8)
         }
         .scrollIndicators(.never)
-        .frame(width: 284, height: 480)
+        // 高度与列表模式（ProfitSummary + stockListView maxHeight 520 + Toolbar 等）相当，
+        // 避免切换 list↔settings 时 NSPanel 大小不一致导致下方空白。
+        .frame(width: 284, height: 620)
     }
 
     // MARK: - 排序辅助

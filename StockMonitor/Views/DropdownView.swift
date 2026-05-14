@@ -105,6 +105,5 @@ struct DropdownView: View {
         .frame(width: 320)
         .fixedSize(horizontal: false, vertical: true)
         .background(Color(nsColor: .windowBackgroundColor))
-        .id(showSettings)
     }
 }
