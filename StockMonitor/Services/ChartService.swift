@@ -13,6 +13,9 @@ final class ChartService {
         if stock.market == .usStock {
             return try await fetchUSIntraday(stockId: stock.id)
         }
+        if stock.market == .krStock {
+            return try await fetchKoreanIntraday(stockId: stock.id)
+        }
         return try await fetchTencentIntraday(stock: stock)
     }
 
@@ -104,6 +107,61 @@ final class ChartService {
         }
 
         guard !points.isEmpty else { throw URLError(.cannotParseResponse) }
+        return (points, preClose)
+    }
+
+    // MARK: - Yahoo Finance API（韩股，KST 09:00-15:30）
+    // x 轴以 09:00 KST 为 index=0，最大 index=389（15:29）
+
+    private static func fetchKoreanIntraday(stockId: String) async throws -> (points: [MinutePoint], preClose: Double) {
+        guard let symbol = KoreanStockID.toYahooSymbol(stockId) else {
+            throw URLError(.badURL)
+        }
+        let urlStr = "https://query1.finance.yahoo.com/v8/finance/chart/\(symbol)?interval=1m&range=1d"
+        guard let url = URL(string: urlStr) else { throw URLError(.badURL) }
+        var request = URLRequest(url: url)
+        request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
+
+        let (data, _) = try await URLSession.shared.data(for: request)
+        guard let result = parseKoreanChartPoints(data) else { throw URLError(.cannotParseResponse) }
+        return result
+    }
+
+    /// 解析 Yahoo v8 chart 响应为韩股 MinutePoint 列表 + 昨收。
+    /// 抽出供单元测试使用；失败返回 nil。
+    static func parseKoreanChartPoints(_ data: Data) -> (points: [MinutePoint], preClose: Double)? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let chart = root["chart"] as? [String: Any],
+              let results = chart["result"] as? [[String: Any]],
+              let result = results.first else { return nil }
+
+        let meta = result["meta"] as? [String: Any] ?? [:]
+        let preClose = (meta["chartPreviousClose"] as? Double)
+                    ?? (meta["previousClose"] as? Double)
+                    ?? 0
+        guard let timestamps = result["timestamp"] as? [Double],
+              let indicators = result["indicators"] as? [String: Any],
+              let quoteArr = indicators["quote"] as? [[String: Any]],
+              let rawCloses = quoteArr.first?["close"] as? [Any] else { return nil }
+
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Seoul")!
+        let fmt = DateFormatter()
+        fmt.timeZone = cal.timeZone
+        fmt.dateFormat = "HH:mm"
+
+        var points: [MinutePoint] = []
+        for (i, ts) in timestamps.enumerated() {
+            guard i < rawCloses.count,
+                  let price = rawCloses[i] as? Double, price > 0 else { continue }
+            let date = Date(timeIntervalSince1970: ts)
+            let comps = cal.dateComponents([.hour, .minute], from: date)
+            let minuteOfDay = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
+            let idx = minuteOfDay - (9 * 60)  // 距 09:00 的分钟数
+            guard idx >= 0, idx <= 389 else { continue }
+            points.append(MinutePoint(id: idx, time: fmt.string(from: date), price: price))
+        }
+        guard !points.isEmpty else { return nil }
         return (points, preClose)
     }
 }
