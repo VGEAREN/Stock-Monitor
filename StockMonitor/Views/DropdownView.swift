@@ -103,6 +103,7 @@ struct DropdownView: View {
         }
         .padding(6)
         .frame(width: 320)
+        .fixedSize(horizontal: false, vertical: true)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 }
